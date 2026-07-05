@@ -1,7 +1,7 @@
 import { Dashboard } from "@/components/Dashboard";
-import { SignalForm } from "@/components/SignalForm";
 import { SignalRecords } from "@/components/SignalRecords";
 import { TradePanel } from "@/components/TradePanel";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -9,9 +9,13 @@ export default function Home() {
       <h1 className="text-2xl font-bold">Copy-Trade Lite</h1>
       <TradePanel />
       <Dashboard />
-      <SignalForm />
       <section>
-        <h2 className="text-lg font-semibold mb-3">Published signals</h2>
+        <div className="flex justify-between items-center mb-3">
+          <h2 className="text-lg font-semibold">Published signals</h2>
+          <Link href="/author" className="text-sm font-semibold text-blue-600 hover:underline">
+            Publish a signal →
+          </Link>
+        </div>
         <SignalRecords />
       </section>
     </main>
