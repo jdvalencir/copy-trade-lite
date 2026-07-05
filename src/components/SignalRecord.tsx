@@ -1,6 +1,7 @@
 "use client";
 import { Signal } from "@/lib/signals";
 import { useState } from "react";
+import { SignalChart } from "./SignalChart";
 
 type Status =
   | { kind: "idle" | "loading" }
@@ -61,6 +62,8 @@ export function SignalRecord({ signal }: { signal: Signal }) {
           <p className="font-medium text-red-600">{slPrice.toFixed(0)}</p>
         </div>
       </div>
+
+      <SignalChart entry={entry} tpPrice={tpPrice} slPrice={slPrice} />
 
       <div className="flex justify-between text-sm text-gray-500">
         <span>By {author} · {size} BTC · {holdHours}h</span>

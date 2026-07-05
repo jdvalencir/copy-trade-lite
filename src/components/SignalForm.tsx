@@ -42,8 +42,9 @@ export function SignalForm({ onCreated }: { onCreated?: () => void }) {
         setStatus({ kind: "error", msg: json.error ?? "Could not create the signal." });
       } else {
         setStatus({ kind: "ok" });
-        router.refresh(); // re-renders the list server component
         onCreated?.(); // notify the parent in case it wants to react too
+        router.push("/"); // land on the history so the author sees the new signal
+        router.refresh(); // bust the router cache so the fresh list is fetched
       }
     } catch (e) {
       setStatus({ kind: "error", msg: (e as Error).message });
@@ -55,7 +56,6 @@ export function SignalForm({ onCreated }: { onCreated?: () => void }) {
 
   return (
     <div className="rounded-2xl border p-5 space-y-4">
-      <h2 className="text-lg font-semibold">Publish a signal</h2>
       <p className="text-sm text-gray-500">
         The entry is taken from the live price when publishing. You define TP, SL and duration.
       </p>
