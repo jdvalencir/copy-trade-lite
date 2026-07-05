@@ -6,14 +6,16 @@ import { TradePanel } from "@/components/TradePanel";
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-6 lg:h-screen lg:flex lg:flex-col lg:space-y-0 lg:gap-6">
-      <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Copy-Trade Lite</h1>
+      <header className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold leading-tight">Copy-Trade Lite</h1>
           <p className="text-sm text-muted-foreground">
             Dead-simple copy-trading on Decibel · Aptos testnet
           </p>
         </div>
-        <ModeToggle />
+        <div className="shrink-0">
+          <ModeToggle />
+        </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[440px_1fr] lg:flex-1 lg:min-h-0 items-start lg:items-stretch">
