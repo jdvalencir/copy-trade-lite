@@ -1,23 +1,43 @@
 import { Dashboard } from "@/components/Dashboard";
+import { ModeToggle } from "@/components/ModeToggle";
 import { SignalRecords } from "@/components/SignalRecords";
 import { TradePanel } from "@/components/TradePanel";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="max-w-2xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">Copy-Trade Lite</h1>
-      <TradePanel />
-      <Dashboard />
-      <section>
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-semibold">Published signals</h2>
-          <Link href="/author" className="text-sm font-semibold text-blue-600 hover:underline">
-            Publish a signal →
-          </Link>
+    <main className="mx-auto w-full max-w-7xl p-4 sm:p-6 space-y-6 lg:h-screen lg:flex lg:flex-col lg:space-y-0 lg:gap-6">
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Copy-Trade Lite</h1>
+          <p className="text-sm text-muted-foreground">
+            Dead-simple copy-trading on Decibel · Aptos testnet
+          </p>
         </div>
-        <SignalRecords />
-      </section>
+        <ModeToggle />
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-[440px_1fr] lg:flex-1 lg:min-h-0 items-start lg:items-stretch">
+        {/* Left: trade + account. Scrolls on its own on desktop. */}
+        <aside className="space-y-6 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+          <TradePanel />
+          <Dashboard />
+        </aside>
+
+        {/* Right: signals feed. Scrolls on its own on desktop. */}
+        <section className="flex flex-col gap-3 lg:min-h-0">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Published signals</h2>
+            <Button asChild size="sm">
+              <Link href="/author">Publish a signal</Link>
+            </Button>
+          </div>
+          <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
+            <SignalRecords />
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
