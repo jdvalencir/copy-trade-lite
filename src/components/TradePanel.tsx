@@ -1,24 +1,31 @@
 "use client";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type Side = "buy" | "sell";
-type Status =
-  | { kind: "idle" | "loading" }
-  | { kind: "ok"; hash: string }
-  | { kind: "error"; msg: string };
 
 export function TradePanel() {
   const [side, setSide] = useState<Side>("buy");
   const [size, setSize] = useState("0.001");
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [loading, setLoading] = useState(false);
 
   async function submit() {
     const n = Number(size);
     if (!Number.isFinite(n) || n <= 0) {
-      setStatus({ kind: "error", msg: "Enter a size greater than 0." });
+      toast.error("Enter a size greater than 0.");
       return;
     }
-    setStatus({ kind: "loading" });
+    setLoading(true);
     try {
       const res = await fetch("/api/trade", {
         method: "POST",
@@ -27,81 +34,81 @@ export function TradePanel() {
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        setStatus({ kind: "error", msg: json.error ?? "Could not execute the order." });
+        toast.error(json.error ?? "Could not execute the order.");
       } else {
-        setStatus({ kind: "ok", hash: json.hash ?? "" });
+        toast.success("Order executed!", {
+          description: json.hash ? `Tx: ${json.hash.slice(0, 12)}…` : undefined,
+        });
       }
     } catch (e) {
-      setStatus({ kind: "error", msg: (e as Error).message });
+      toast.error((e as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
-  const loading = status.kind === "loading";
-
   return (
-    <div className="rounded-2xl border p-5 space-y-4">
-      <h2 className="text-lg font-semibold">Trade BTC</h2>
-
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          onClick={() => setSide("buy")}
-          className={`rounded-xl py-3 font-semibold ${
-            side === "buy" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          Buy
-        </button>
-        <button
-          onClick={() => setSide("sell")}
-          className={`rounded-xl py-3 font-semibold ${
-            side === "sell" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-600"
-          }`}
-        >
-          Sell
-        </button>
-      </div>
-
-      <div>
-        <label className="text-sm text-gray-500">Size (BTC)</label>
-        <input
-          type="number"
-          step="0.001"
-          min="0"
-          value={size}
-          onChange={(e) => setSize(e.target.value)}
-          className="w-full rounded-xl border p-3 mt-1"
-        />
-        <div className="flex gap-2 mt-2">
-          {["0.001", "0.005", "0.01"].map((v) => (
-            <button
-              key={v}
-              onClick={() => setSize(v)}
-              className="text-sm rounded-lg border px-3 py-1 text-gray-600"
-            >
-              {v}
-            </button>
-          ))}
+    <Card>
+      <CardHeader>
+        <CardTitle>Trade BTC</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={side === "buy" ? "default" : "outline"}
+            className={cn(side === "buy" && "bg-profit text-white hover:bg-profit/90")}
+            onClick={() => setSide("buy")}
+          >
+            Buy
+          </Button>
+          <Button
+            type="button"
+            variant={side === "sell" ? "default" : "outline"}
+            className={cn(side === "sell" && "bg-loss text-white hover:bg-loss/90")}
+            onClick={() => setSide("sell")}
+          >
+            Sell
+          </Button>
         </div>
-      </div>
 
-      <button
-        onClick={submit}
-        disabled={loading}
-        className={`w-full rounded-2xl py-4 text-lg font-bold text-white disabled:opacity-50 ${
-          side === "buy" ? "bg-green-600" : "bg-red-600"
-        }`}
-      >
-        {loading ? "Sending..." : side === "buy" ? "Buy BTC" : "Sell BTC"}
-      </button>
+        <div className="space-y-2">
+          <Label htmlFor="trade-size">Size (BTC)</Label>
+          <Input
+            id="trade-size"
+            type="number"
+            step="0.001"
+            min="0"
+            value={size}
+            onChange={(e) => setSize(e.target.value)}
+          />
+          <div className="flex gap-2">
+            {["0.001", "0.005", "0.01"].map((v) => (
+              <Button
+                key={v}
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setSize(v)}
+              >
+                {v}
+              </Button>
+            ))}
+          </div>
+        </div>
 
-      {status.kind === "ok" && (
-        <p className="rounded-lg bg-green-100 text-green-700 p-3 text-sm">
-          Order executed! ✅ {status.hash && `Tx: ${status.hash.slice(0, 10)}…`}
-        </p>
-      )}
-      {status.kind === "error" && (
-        <p className="rounded-lg bg-red-100 text-red-700 p-3 text-sm">{status.msg}</p>
-      )}
-    </div>
+        <Button
+          className={cn(
+            "w-full text-white",
+            side === "buy" ? "bg-profit hover:bg-profit/90" : "bg-loss hover:bg-loss/90",
+          )}
+          size="lg"
+          disabled={loading}
+          onClick={submit}
+        >
+          {loading ? "Sending..." : side === "buy" ? "Buy BTC" : "Sell BTC"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

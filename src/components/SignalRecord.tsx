@@ -1,17 +1,16 @@
 "use client";
-import { Signal } from "@/lib/signals";
 import { useState } from "react";
+import { toast } from "sonner";
+import { Signal } from "@/lib/signals";
 import { SignalChart } from "./SignalChart";
-
-type Status =
-  | { kind: "idle" | "loading" }
-  | { kind: "ok"; hash: string }
-  | { kind: "error"; msg: string };
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export function SignalRecord({ signal }: { signal: Signal }) {
   const { author, market, side, entry, tpPercent, slPercent, holdHours, size, createdAt } = signal;
   const created = new Date(createdAt).toLocaleString();
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [loading, setLoading] = useState(false);
 
   // Target prices derived from the frozen entry (long: TP above, SL below)
   const dir = side === "buy" ? 1 : -1;
@@ -19,7 +18,7 @@ export function SignalRecord({ signal }: { signal: Signal }) {
   const slPrice = entry * (1 - (dir * slPercent) / 100);
 
   async function copy() {
-    setStatus({ kind: "loading" });
+    setLoading(true);
     try {
       const res = await fetch("/api/trade", {
         method: "POST",
@@ -28,64 +27,56 @@ export function SignalRecord({ signal }: { signal: Signal }) {
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        setStatus({ kind: "error", msg: json.error ?? "Could not copy the trade." });
+        toast.error(json.error ?? "Could not copy the trade.");
       } else {
-        setStatus({ kind: "ok", hash: json.hash ?? "" });
+        toast.success("Trade copied!", {
+          description: json.hash ? `Tx: ${json.hash.slice(0, 12)}…` : undefined,
+        });
       }
     } catch (e) {
-      setStatus({ kind: "error", msg: (e as Error).message });
+      toast.error((e as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
-  const loading = status.kind === "loading";
-
   return (
-    <div className="border rounded-2xl p-4 mb-4 space-y-3">
-      <div className="flex justify-between items-center">
-        <span className="font-bold">{market}</span>
-        <span className={`px-2 py-1 rounded text-white text-sm ${side === "buy" ? "bg-green-600" : "bg-red-600"}`}>
-          {side === "buy" ? "LONG" : "SHORT"}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 text-sm">
-        <div>
-          <p className="text-gray-500">Entry</p>
-          <p className="font-medium">{entry}</p>
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold">{market}</span>
+          <Badge className={side === "buy" ? "bg-profit text-white" : "bg-loss text-white"}>
+            {side === "buy" ? "LONG" : "SHORT"}
+          </Badge>
         </div>
-        <div>
-          <p className="text-gray-500">TP · {tpPercent}%</p>
-          <p className="font-medium text-green-600">{tpPrice.toFixed(0)}</p>
+        <span className="text-xs text-muted-foreground">{created}</span>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-3 gap-2 text-sm">
+          <div>
+            <p className="text-muted-foreground">Entry</p>
+            <p className="font-medium tabular-nums">{entry.toFixed(0)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">TP · {tpPercent}%</p>
+            <p className="font-medium tabular-nums text-profit">{tpPrice.toFixed(0)}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">SL · {slPercent}%</p>
+            <p className="font-medium tabular-nums text-loss">{slPrice.toFixed(0)}</p>
+          </div>
         </div>
-        <div>
-          <p className="text-gray-500">SL · {slPercent}%</p>
-          <p className="font-medium text-red-600">{slPrice.toFixed(0)}</p>
+
+        <SignalChart entry={entry} tpPrice={tpPrice} slPrice={slPrice} createdAt={createdAt} />
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>By {author} · {size} BTC · {holdHours}h</span>
         </div>
-      </div>
 
-      <SignalChart entry={entry} tpPrice={tpPrice} slPrice={slPrice} />
-
-      <div className="flex justify-between text-sm text-gray-500">
-        <span>By {author} · {size} BTC · {holdHours}h</span>
-        <span>{created}</span>
-      </div>
-
-      <button
-        onClick={copy}
-        disabled={loading}
-        className="w-full rounded-xl py-2.5 font-semibold text-white bg-blue-600 disabled:opacity-50"
-      >
-        {loading ? "Copying..." : `Copy ${side === "buy" ? "long" : "short"} · ${size} BTC`}
-      </button>
-
-      {status.kind === "ok" && (
-        <p className="rounded-lg bg-green-100 text-green-700 p-2 text-sm">
-          Trade copied! ✅ {status.hash && `Tx: ${status.hash.slice(0, 10)}…`}
-        </p>
-      )}
-      {status.kind === "error" && (
-        <p className="rounded-lg bg-red-100 text-red-700 p-2 text-sm">{status.msg}</p>
-      )}
-    </div>
+        <Button className="w-full" disabled={loading} onClick={copy}>
+          {loading ? "Copying..." : `Copy ${side === "buy" ? "long" : "short"} · ${size} BTC`}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

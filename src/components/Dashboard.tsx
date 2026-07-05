@@ -1,7 +1,10 @@
-"use client"
+"use client";
 
-import { fmt } from '@/lib/utils';
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn, fmt } from "@/lib/utils";
 
 type Overview = {
   perp_equity_balance: number;
@@ -26,13 +29,23 @@ type AccountData = {
   openOrders: { items: OpenOrder[]; total_count?: number };
 };
 
+function Stat({ label, value, className }: { label: string; value: string; className?: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className={cn("text-xl font-semibold tabular-nums", className)}>{value}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function Dashboard() {
   const [data, setData] = useState<AccountData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-
-    useEffect(() => {
+  useEffect(() => {
     let active = true;
     async function load() {
       try {
@@ -58,48 +71,57 @@ export function Dashboard() {
     };
   }, []);
 
+  if (loading) {
+    return (
+      <div className="grid grid-cols-3 gap-4">
+        {[0, 1, 2].map((i) => (
+          <Skeleton key={i} className="h-[76px] w-full rounded-xl" />
+        ))}
+      </div>
+    );
+  }
 
-if (loading) return <p className="p-6 text-gray-500">Loading...</p>;
-
- return (
+  return (
     <div className="space-y-6">
       {error && (
-        <div className="rounded-lg bg-red-100 text-red-700 p-3">{error}</div>
+        <Card className="border-destructive/50">
+          <CardContent className="p-3 text-sm text-destructive">{error}</CardContent>
+        </Card>
       )}
 
       {data && (
         <>
           <div className="grid grid-cols-3 gap-4">
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-gray-500">Equity</p>
-              <p className="text-xl font-semibold">{fmt(data.overview.perp_equity_balance)}</p>
-            </div>
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-gray-500">Available</p>
-              <p className="text-xl font-semibold">{fmt(data.overview.cross_available_to_trade)}</p>
-            </div>
-            <div className="rounded-xl border p-4">
-              <p className="text-sm text-gray-500">Unrealized PnL</p>
-              <p className={`text-xl font-semibold ${data.overview.unrealized_pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {fmt(data.overview.unrealized_pnl)}
-              </p>
-            </div>
+            <Stat label="Equity" value={fmt(data.overview.perp_equity_balance)} />
+            <Stat label="Available" value={fmt(data.overview.cross_available_to_trade)} />
+            <Stat
+              label="Unrealized PnL"
+              value={fmt(data.overview.unrealized_pnl)}
+              className={data.overview.unrealized_pnl >= 0 ? "text-profit" : "text-loss"}
+            />
           </div>
 
           <section>
             <h2 className="text-lg font-semibold mb-2">Open positions</h2>
             {data.positions.length === 0 ? (
-              <p className="text-gray-500">You have no open positions.</p>
+              <p className="text-muted-foreground text-sm">You have no open positions.</p>
             ) : (
               <ul className="space-y-2">
                 {data.positions.map((p, i) => (
-                  <li key={i} className="rounded-lg border p-3 flex justify-between items-center">
-                    <span className="font-medium">
-                      {p.size >= 0 ? "Long" : "Short"} BTC-USD · {Math.abs(p.size)}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      Entry {fmt(p.entry_price)} · Liq {fmt(p.estimated_liquidation_price)}
-                    </span>
+                  <li key={i}>
+                    <Card>
+                      <CardContent className="p-3 flex justify-between items-center gap-3">
+                        <span className="font-medium flex items-center gap-2 whitespace-nowrap">
+                          <Badge className={p.size >= 0 ? "bg-profit text-white" : "bg-loss text-white"}>
+                            {p.size >= 0 ? "Long" : "Short"}
+                          </Badge>
+                          BTC-USD · {Math.abs(p.size)}
+                        </span>
+                        <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                          Entry {fmt(p.entry_price)} · Liq {fmt(p.estimated_liquidation_price)}
+                        </span>
+                      </CardContent>
+                    </Card>
                   </li>
                 ))}
               </ul>
@@ -109,17 +131,24 @@ if (loading) return <p className="p-6 text-gray-500">Loading...</p>;
           <section>
             <h2 className="text-lg font-semibold mb-2">Open orders</h2>
             {data.openOrders.items.length === 0 ? (
-              <p className="text-gray-500">You have no open orders.</p>
+              <p className="text-muted-foreground text-sm">You have no open orders.</p>
             ) : (
               <ul className="space-y-2">
                 {data.openOrders.items.map((o) => (
-                  <li key={o.order_id} className="rounded-lg border p-3 flex justify-between items-center">
-                    <span className="font-medium">
-                      {o.is_buy ? "Buy" : "Sell"} BTC-USD · {o.remaining_size ?? "-"}
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {o.price != null ? fmt(o.price) : "Market"}
-                    </span>
+                  <li key={o.order_id}>
+                    <Card>
+                      <CardContent className="p-3 flex justify-between items-center gap-3">
+                        <span className="font-medium flex items-center gap-2 whitespace-nowrap">
+                          <Badge variant={o.is_buy ? "default" : "secondary"}>
+                            {o.is_buy ? "Buy" : "Sell"}
+                          </Badge>
+                          BTC-USD · {o.remaining_size ?? "-"}
+                        </span>
+                        <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
+                          {o.price != null ? fmt(o.price) : "Market"}
+                        </span>
+                      </CardContent>
+                    </Card>
                   </li>
                 ))}
               </ul>

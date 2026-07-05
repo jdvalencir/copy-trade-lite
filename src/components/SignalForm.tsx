@@ -1,11 +1,12 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-
-type Status =
-  | { kind: "idle" | "loading" }
-  | { kind: "ok" }
-  | { kind: "error"; msg: string };
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export function SignalForm({ onCreated }: { onCreated?: () => void }) {
   const router = useRouter();
@@ -15,7 +16,7 @@ export function SignalForm({ onCreated }: { onCreated?: () => void }) {
   const [slPercent, setSl] = useState("2");
   const [holdHours, setHold] = useState("4");
   const [size, setSize] = useState("0.001");
-  const [status, setStatus] = useState<Status>({ kind: "idle" });
+  const [loading, setLoading] = useState(false);
 
   async function submit() {
     const nums = {
@@ -26,11 +27,11 @@ export function SignalForm({ onCreated }: { onCreated?: () => void }) {
     };
     for (const [k, v] of Object.entries(nums)) {
       if (!Number.isFinite(v) || v <= 0) {
-        setStatus({ kind: "error", msg: `Check the ${k} field: it must be greater than 0.` });
+        toast.error(`Check the ${k} field: it must be greater than 0.`);
         return;
       }
     }
-    setStatus({ kind: "loading" });
+    setLoading(true);
     try {
       const res = await fetch("/api/signals", {
         method: "POST",
@@ -39,75 +40,77 @@ export function SignalForm({ onCreated }: { onCreated?: () => void }) {
       });
       const json = await res.json();
       if (!res.ok || !json.ok) {
-        setStatus({ kind: "error", msg: json.error ?? "Could not create the signal." });
+        toast.error(json.error ?? "Could not create the signal.");
       } else {
-        setStatus({ kind: "ok" });
-        onCreated?.(); // notify the parent in case it wants to react too
+        toast.success("Signal published!");
+        onCreated?.();
         router.push("/"); // land on the history so the author sees the new signal
         router.refresh(); // bust the router cache so the fresh list is fetched
       }
     } catch (e) {
-      setStatus({ kind: "error", msg: (e as Error).message });
+      toast.error((e as Error).message);
+    } finally {
+      setLoading(false);
     }
   }
 
-  const loading = status.kind === "loading";
-  const field = "w-full rounded-xl border p-2 mt-1";
-
   return (
-    <div className="rounded-2xl border p-5 space-y-4">
-      <p className="text-sm text-gray-500">
-        The entry is taken from the live price when publishing. You define TP, SL and duration.
-      </p>
-
-      <div>
-        <label className="text-sm text-gray-500">Author</label>
-        <input value={author} onChange={(e) => setAuthor(e.target.value)}
-          placeholder="Your name" className={field} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <button onClick={() => setSide("buy")}
-          className={`rounded-xl py-2 font-semibold ${side === "buy" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600"}`}>
-          Long
-        </button>
-        <button onClick={() => setSide("sell")}
-          className={`rounded-xl py-2 font-semibold ${side === "sell" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-600"}`}>
-          Short
-        </button>
-      </div>
-
-      <div className="grid grid-cols-3 gap-2">
-        <div>
-          <label className="text-sm text-gray-500">TP %</label>
-          <input type="number" step="0.5" value={tpPercent} onChange={(e) => setTp(e.target.value)} className={field} />
+    <Card>
+      <CardHeader>
+        <CardTitle>New signal</CardTitle>
+        <CardDescription>
+          The entry is taken from the live price when publishing. You define TP, SL and duration.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="author">Author</Label>
+          <Input id="author" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Your name" />
         </div>
-        <div>
-          <label className="text-sm text-gray-500">SL %</label>
-          <input type="number" step="0.5" value={slPercent} onChange={(e) => setSl(e.target.value)} className={field} />
+
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant={side === "buy" ? "default" : "outline"}
+            className={cn(side === "buy" && "bg-profit text-white hover:bg-profit/90")}
+            onClick={() => setSide("buy")}
+          >
+            Long
+          </Button>
+          <Button
+            type="button"
+            variant={side === "sell" ? "default" : "outline"}
+            className={cn(side === "sell" && "bg-loss text-white hover:bg-loss/90")}
+            onClick={() => setSide("sell")}
+          >
+            Short
+          </Button>
         </div>
-        <div>
-          <label className="text-sm text-gray-500">Hours</label>
-          <input type="number" step="1" value={holdHours} onChange={(e) => setHold(e.target.value)} className={field} />
+
+        <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-2">
+            <Label htmlFor="tp">TP %</Label>
+            <Input id="tp" type="number" step="0.5" value={tpPercent} onChange={(e) => setTp(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="sl">SL %</Label>
+            <Input id="sl" type="number" step="0.5" value={slPercent} onChange={(e) => setSl(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="hold">Hours</Label>
+            <Input id="hold" type="number" step="1" value={holdHours} onChange={(e) => setHold(e.target.value)} />
+          </div>
         </div>
-      </div>
 
-      <div>
-        <label className="text-sm text-gray-500">Size (BTC)</label>
-        <input type="number" step="0.001" value={size} onChange={(e) => setSize(e.target.value)} className={field} />
-      </div>
+        <div className="space-y-2">
+          <Label htmlFor="signal-size">Size (BTC)</Label>
+          <Input id="signal-size" type="number" step="0.001" value={size} onChange={(e) => setSize(e.target.value)} />
+        </div>
 
-      <button onClick={submit} disabled={loading}
-        className="w-full rounded-2xl py-3 font-bold text-white bg-blue-600 disabled:opacity-50">
-        {loading ? "Publishing..." : "Publish signal"}
-      </button>
-
-      {status.kind === "ok" && (
-        <p className="rounded-lg bg-green-100 text-green-700 p-3 text-sm">Signal published! ✅</p>
-      )}
-      {status.kind === "error" && (
-        <p className="rounded-lg bg-red-100 text-red-700 p-3 text-sm">{status.msg}</p>
-      )}
-    </div>
+        <Button className="w-full" size="lg" disabled={loading} onClick={submit}>
+          {loading ? "Publishing..." : "Publish signal"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
