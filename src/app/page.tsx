@@ -1,6 +1,5 @@
 import { Dashboard } from "@/components/Dashboard";
 import { ModeToggle } from "@/components/ModeToggle";
-import { SignalLeaderboard } from "@/components/SignalLeaderboard";
 import { SignalRecords } from "@/components/SignalRecords";
 import { TradePanel } from "@/components/TradePanel";
 
@@ -29,8 +28,7 @@ export default function Home() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Published signals</h2>
           </div>
-          <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1 space-y-4">
-            <SignalLeaderboard />
+          <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
             <SignalRecords />
           </div>
         </section>

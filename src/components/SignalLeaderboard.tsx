@@ -1,4 +1,4 @@
-import { listSignals } from "@/lib/signals";
+import { Signal } from "@/lib/signals";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Row = {
@@ -11,8 +11,7 @@ type Row = {
   last: number;
 };
 
-export async function SignalLeaderboard() {
-  const signals = await listSignals();
+export function SignalLeaderboard({ signals }: { signals: Signal[] }) {
   if (signals.length === 0) return null;
 
   const byAuthor = new Map<string, Row>();

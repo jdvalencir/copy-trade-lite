@@ -1,5 +1,4 @@
 "use client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 export function SignalForm({ onCreated }: { onCreated?: () => void }) {
-  const router = useRouter();
   const [author, setAuthor] = useState("");
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [tpPercent, setTp] = useState("3");
@@ -42,10 +40,10 @@ export function SignalForm({ onCreated }: { onCreated?: () => void }) {
       if (!res.ok || !json.ok) {
         toast.error(json.error ?? "Could not create the signal.");
       } else {
-        toast.success("Signal published!");
+        toast.success("Signal published!", {
+          description: "It will show up on the main page shortly.",
+        });
         onCreated?.();
-        router.push("/"); // land on the history so the author sees the new signal
-        router.refresh(); // bust the router cache so the fresh list is fetched
       }
     } catch (e) {
       toast.error((e as Error).message);
