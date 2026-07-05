@@ -27,6 +27,7 @@ type AccountData = {
   overview: Overview;
   positions: Position[];
   openOrders: { items: OpenOrder[]; total_count?: number };
+  markPrice: number | null;
 };
 
 function Stat({ label, value, className }: { label: string; value: string; className?: string }) {
@@ -107,23 +108,43 @@ export function Dashboard() {
               <p className="text-muted-foreground text-sm">You have no open positions.</p>
             ) : (
               <ul className="space-y-2">
-                {data.positions.map((p, i) => (
-                  <li key={i}>
-                    <Card>
-                      <CardContent className="p-3 flex justify-between items-center gap-3">
-                        <span className="font-medium flex items-center gap-2 whitespace-nowrap">
-                          <Badge className={p.size >= 0 ? "bg-profit text-white" : "bg-loss text-white"}>
-                            {p.size >= 0 ? "Long" : "Short"}
-                          </Badge>
-                          BTC-USD · {Math.abs(p.size)}
-                        </span>
-                        <span className="text-sm text-muted-foreground tabular-nums whitespace-nowrap">
-                          Entry {fmt(p.entry_price)} · Liq {fmt(p.estimated_liquidation_price)}
-                        </span>
-                      </CardContent>
-                    </Card>
-                  </li>
-                ))}
+                {data.positions.map((p, i) => {
+                  // No per-position PnL from the SDK, so estimate the unrealized
+                  // PnL from the live mark price (excludes funding/fees).
+                  const pnl = data.markPrice != null ? (data.markPrice - p.entry_price) * p.size : null;
+                  return (
+                    <li key={i}>
+                      <Card>
+                        <CardContent className="p-3 space-y-1">
+                          <div className="flex justify-between items-center gap-3">
+                            <span className="font-medium flex items-center gap-2 whitespace-nowrap">
+                              <Badge className={p.size >= 0 ? "bg-profit text-white" : "bg-loss text-white"}>
+                                {p.size >= 0 ? "Long" : "Short"}
+                              </Badge>
+                              BTC-USD · {Math.abs(p.size)}
+                            </span>
+                            {pnl != null && (
+                              <span className={cn("text-sm font-medium tabular-nums whitespace-nowrap", pnl >= 0 ? "text-profit" : "text-loss")}>
+                                {pnl >= 0 ? "+" : ""}{fmt(pnl)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground tabular-nums">
+                            <span>
+                              Entry <span className="text-foreground font-medium">{fmt(p.entry_price)}</span>
+                            </span>
+                            <span>
+                              Liq{" "}
+                              <span className="text-foreground font-medium">
+                                {p.estimated_liquidation_price > 0 ? fmt(p.estimated_liquidation_price) : "—"}
+                              </span>
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </section>
