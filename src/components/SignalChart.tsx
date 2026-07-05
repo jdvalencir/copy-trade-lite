@@ -18,41 +18,27 @@ const config = {
 type Point = { t: number; price: number };
 
 // Live price chart for one signal. Seeds with the true entry at its creation
-// time (real data), then appends observed live prices as they are polled.
-// TP / SL / Entry are drawn as reference lines so the plan is obvious.
+// time (real data), then appends observed live prices fed via the `price` prop
+// (from the shared poller). TP / SL / Entry are drawn as reference lines.
 export function SignalChart({
   entry,
   tpPrice,
   slPrice,
   createdAt,
+  price,
 }: {
   entry: number;
   tpPrice: number;
   slPrice: number;
   createdAt: number;
+  price: number | null;
 }) {
   const [points, setPoints] = useState<Point[]>([{ t: createdAt, price: entry }]);
 
   useEffect(() => {
-    let active = true;
-    async function load() {
-      try {
-        const res = await fetch("/api/price");
-        const json = await res.json();
-        if (active && res.ok && Number.isFinite(json.price)) {
-          setPoints((prev) => [...prev, { t: Date.now(), price: json.price }].slice(-40));
-        }
-      } catch {
-        /* keep the last points if the price can't be read */
-      }
-    }
-    load();
-    const id = setInterval(load, 5000);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
-  }, []);
+    if (price == null) return;
+    setPoints((prev) => [...prev, { t: Date.now(), price }].slice(-40));
+  }, [price]);
 
   const prices = points.map((p) => p.price);
   const lo = Math.min(slPrice, tpPrice, ...prices);

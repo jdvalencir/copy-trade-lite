@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Signal } from "@/lib/signals";
+import { useLivePrice } from "@/lib/useLivePrice";
+import { cn } from "@/lib/utils";
 import { SignalChart } from "./SignalChart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,11 +13,24 @@ export function SignalRecord({ signal }: { signal: Signal }) {
   const { author, market, side, entry, tpPercent, slPercent, holdHours, size, createdAt } = signal;
   const created = new Date(createdAt).toLocaleString();
   const [loading, setLoading] = useState(false);
+  const now = useLivePrice();
 
   // Target prices derived from the frozen entry (long: TP above, SL below)
   const dir = side === "buy" ? 1 : -1;
   const tpPrice = entry * (1 + (dir * tpPercent) / 100);
   const slPrice = entry * (1 - (dir * slPercent) / 100);
+
+  // Factual status: expired once the hold window has elapsed.
+  const expired = Date.now() > createdAt + holdHours * 3_600_000;
+
+  // Live (not historical) read of where the price sits vs the plan. dir folds
+  // long/short so "toward TP" is the profit side in both cases.
+  let live: { label: string; tone: "profit" | "loss" | "muted" } | null = null;
+  if (now != null) {
+    if (dir * (now - tpPrice) >= 0) live = { label: "Live · past TP", tone: "profit" };
+    else if (dir * (now - slPrice) <= 0) live = { label: "Live · past SL", tone: "loss" };
+    else live = { label: "Live · in range", tone: "muted" };
+  }
 
   async function copy() {
     setLoading(true);
@@ -48,6 +63,9 @@ export function SignalRecord({ signal }: { signal: Signal }) {
           <Badge className={side === "buy" ? "bg-profit text-white" : "bg-loss text-white"}>
             {side === "buy" ? "LONG" : "SHORT"}
           </Badge>
+          <Badge variant={expired ? "secondary" : "outline"}>
+            {expired ? "Expired" : "Active"}
+          </Badge>
         </div>
         <span className="text-xs text-muted-foreground">{created}</span>
       </CardHeader>
@@ -67,14 +85,30 @@ export function SignalRecord({ signal }: { signal: Signal }) {
           </div>
         </div>
 
-        <SignalChart entry={entry} tpPrice={tpPrice} slPrice={slPrice} createdAt={createdAt} />
+        <SignalChart entry={entry} tpPrice={tpPrice} slPrice={slPrice} createdAt={createdAt} price={now} />
 
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
           <span>By {author} · {size} BTC · {holdHours}h</span>
+          {live && (
+            <span
+              className={cn(
+                "text-xs font-medium whitespace-nowrap",
+                live.tone === "profit" && "text-profit",
+                live.tone === "loss" && "text-loss",
+                live.tone === "muted" && "text-muted-foreground",
+              )}
+            >
+              {live.label}
+            </span>
+          )}
         </div>
 
-        <Button className="w-full" disabled={loading} onClick={copy}>
-          {loading ? "Copying..." : `Copy ${side === "buy" ? "long" : "short"} · ${size} BTC`}
+        <Button className="w-full" disabled={loading || expired} onClick={copy}>
+          {expired
+            ? "Signal expired"
+            : loading
+              ? "Copying..."
+              : `Copy ${side === "buy" ? "long" : "short"} · ${size} BTC`}
         </Button>
       </CardContent>
     </Card>
