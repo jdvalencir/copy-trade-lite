@@ -24,7 +24,9 @@ export const SUBACCOUNT = write.getPrimarySubaccountAddress(account.accountAddre
 
 // Constants
 export const MARKET = "BTC/USD";
-export const MAX_BUILDER_FEE = 10;
-export const BUILDER_FEE = 10; // always <= MAX_BUILDER_FEE (safety lock)
-export const BUILDER_ADDR = SUBACCOUNT
-export const USE_BUILDER_CODE = false; 
+export const MAX_BUILDER_FEE = 10; // bps
+export const BUILDER_FEE = 10; // bps; always <= MAX_BUILDER_FEE (safety lock)
+// The builder is our own primary subaccount, padded to a 64-char address as the
+// chain expects. Must match the address approved in approve-builder.ts.
+export const BUILDER_ADDR = "0x" + SUBACCOUNT.replace(/^0x/, "").padStart(64, "0");
+export const USE_BUILDER_CODE = true;

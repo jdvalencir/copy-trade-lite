@@ -19,8 +19,7 @@ import { requireEnv } from "@/lib/utils";
 import { Ed25519Account, Ed25519PrivateKey } from "@aptos-labs/ts-sdk";
 import { DecibelWriteDex, TESTNET_CONFIG } from "@decibeltrade/sdk";
 
-const BUILDER_ADDR = "0x0000000000000000000000008c967e73e7b15087c42a10d344cff4c96d877f1d";
-const MAX_BUILDER_FEE = 10; // same value as MAX_BUILDER_FEE in decibel.ts
+const MAX_BUILDER_FEE = 10; // bps; same value as MAX_BUILDER_FEE in decibel.ts
 
 
 async function main() {
@@ -36,13 +35,18 @@ async function main() {
     skipSimulate: true,
   });
 
-  // The builder is you -> your primary subaccount (already exists from the deposit).
+  // The builder is you -> your primary subaccount, derived the SAME way and
+  // padded to 64 chars exactly like BUILDER_ADDR in src/lib/decibel.ts, so the
+  // address we approve here is the address the app attaches to orders.
+  const subaccount = write.getPrimarySubaccountAddress(account.accountAddress).toString();
+  const builderAddr = "0x" + subaccount.replace(/^0x/, "").padStart(64, "0");
+
   console.log("Account (owner):", account.accountAddress.toString());
-  console.log("Builder addr (subaccount):", BUILDER_ADDR);
+  console.log("Builder addr (subaccount):", builderAddr);
   console.log(`Approving maxFee = ${MAX_BUILDER_FEE}...`);
 
   const res =   await write.approveMaxBuilderFee({
-    builderAddr: BUILDER_ADDR,
+    builderAddr,
     maxFee: MAX_BUILDER_FEE,
   });
 
