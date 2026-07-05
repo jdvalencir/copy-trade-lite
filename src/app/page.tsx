@@ -2,8 +2,6 @@ import { Dashboard } from "@/components/Dashboard";
 import { ModeToggle } from "@/components/ModeToggle";
 import { SignalRecords } from "@/components/SignalRecords";
 import { TradePanel } from "@/components/TradePanel";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 
 export default function Home() {
   return (
@@ -29,9 +27,6 @@ export default function Home() {
         <section className="flex flex-col gap-3 lg:min-h-0">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Published signals</h2>
-            <Button asChild size="sm">
-              <Link href="/author">Publish a signal</Link>
-            </Button>
           </div>
           <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
             <SignalRecords />
