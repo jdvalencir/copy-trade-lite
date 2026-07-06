@@ -4,6 +4,26 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 
 > **Testnet only. No real funds anywhere.** All config uses `TESTNET_CONFIG`.
 
+**🔗 Live app:** https://copy-trade-lite.vercel.app/ — open it, place a testnet trade, and publish / copy a signal.
+
+---
+
+## Screenshots
+
+<!--
+  Add your images to a `docs/` folder at the repo root and keep these filenames,
+  OR drag-and-drop images in GitHub's editor and replace the paths below with the
+  uploaded URLs (they'll look like https://user-images.githubusercontent.com/...).
+-->
+
+| Home — trade, account & signals feed | Publish a signal |
+| :---: | :---: |
+| ![Home](docs/home.png) | ![Publish a signal](docs/author.png) |
+
+| Signal card — chart, outcome & one-click copy | Author leaderboard |
+| :---: | :---: |
+| ![Signal card](docs/signal.png) | ![Author leaderboard](docs/leaderboard.png) |
+
 ---
 
 ## Tiers implemented
@@ -203,7 +223,7 @@ Implemented and verified end-to-end. What I'd add next:
 - **Automatic TP/SL orders on copy.** Copy currently places the equivalent **entry** only; it doesn't submit on-chain TP/SL trigger orders. I'd wire the signal's TP/SL into `placeOrder`'s trigger-price params.
 - **Exact fill reporting.** Report filled vs requested size instead of a generic success (read back fills from `userTradeHistory`).
 - **Per-user wallets.** The MVP uses a single hardcoded server key, so every action comes from one account. In production each user would connect their own wallet (Aptos wallet adapter) and approve the builder fee from the UI the first time they trade.
-- **WebSocket** instead of polling for live updates.
+- **Real-time via WebSocket.** With another day I'd swap the polling (price, account, and the signals feed) for Decibel's WebSocket subscriptions — the SDK exposes the topics (`market_price`, positions/orders by address). I scoped it but kept **polling** for the MVP: the brief accepts polling, and a browser WS subscription authenticates via subprotocol, which would mean exposing the node API key client-side. I'd do it server-side behind a small WS proxy (needs a long-running host, not serverless) or with a dedicated public read-only key.
 - **Position netting:** with a single cross-margin account and no `isReduceOnly`, copy orders net against existing positions rather than opening isolated ones.
 
 ---
