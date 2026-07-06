@@ -6,7 +6,7 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 
 **🔗 Live app:** https://copy-trade-lite.vercel.app/ — open it, place a testnet trade, and publish / copy a signal.
 
-**🎥 Demo video (< 3 min):** https://www.youtube.com/watch?v=hFvUKwIfexU
+**🎥 Demo video (< 3 min):** https://www.youtube.com/watch?v=JFZ4vDHb4yo
 
 ---
 
