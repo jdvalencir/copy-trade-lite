@@ -10,19 +10,13 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 
 ## Screenshots
 
-<!--
-  Add your images to a `docs/` folder at the repo root and keep these filenames,
-  OR drag-and-drop images in GitHub's editor and replace the paths below with the
-  uploaded URLs (they'll look like https://user-images.githubusercontent.com/...).
--->
-
 | Home — trade, account & signals feed | Publish a signal |
 | :---: | :---: |
-| ![Home](docs/home.png) | ![Publish a signal](docs/author.png) |
+| <img width="440" alt="Home" src="https://github.com/user-attachments/assets/34ab3359-3775-4441-af8a-90d1b91743af" /> | <img width="440" alt="Publish a signal" src="https://github.com/user-attachments/assets/2c8d8adb-89ef-4965-893f-22cdd8d2e50b" /> |
 
 | Signal card — chart, outcome & one-click copy | Author leaderboard |
 | :---: | :---: |
-| ![Signal card](docs/signal.png) | ![Author leaderboard](docs/leaderboard.png) |
+| <img width="260" alt="Signal card" src="https://github.com/user-attachments/assets/1a61bb8a-f324-47c6-96b3-1d75675bd533" /> | <img width="440" alt="Author leaderboard" src="https://github.com/user-attachments/assets/75ff2b78-2231-4dcc-ab69-b917e9a17a92" /> |
 
 ---
 
