@@ -3,6 +3,7 @@ import {
     MARKET,
     MAX_BUILDER_FEE,
     read,
+    SUBACCOUNT,
     USE_BUILDER_CODE,
     write,
 } from "@/lib/decibel";
@@ -42,6 +43,24 @@ export async function POST(req: Request) {
 
     // 3) Crossing price + conversion to CHAIN UNITS (integers), rounded to tick/lot
     const rawPrice = isBuy ? mark * 1.01 : mark * 0.99;
+
+    // 3b) Cap size to what the collateral can actually open.
+    // Prevents absurd inputs and the "silent partial fill" (order reports
+    // executed but only a fraction filled because margin ran out).
+    const overview: any = await read.accountOverview.getByAddr({ subAddr: SUBACCOUNT });
+    const available = Number(overview?.cross_available_to_trade ?? 0);
+    if (available <= 0) {
+      return NextResponse.json({ error: "No available collateral to trade." }, { status: 400 });
+    }
+    const maxLeverage = Number(market.max_leverage ?? 1);
+    const maxSize = ((available * maxLeverage) / rawPrice) * 0.95; // 5% buffer for fees
+    if (size > maxSize) {
+      return NextResponse.json(
+        { error: `Size too large. Max with your collateral: ~${maxSize.toFixed(4)} BTC.` },
+        { status: 400 },
+      );
+    }
+
     const priceChain =
       Math.round((rawPrice * 10 ** market.px_decimals) / market.tick_size) * market.tick_size;
     let sizeChain =
@@ -57,7 +76,6 @@ export async function POST(req: Request) {
     }
 
     // 4) Place the order
-    console.log("placeOrder ->", { marketName: MARKET, priceChain, sizeChain, isBuy });
     const result = await write.placeOrder({
       marketName: MARKET,
       price: priceChain,
