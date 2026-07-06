@@ -21,10 +21,11 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 - [x] Signal history persisted to a JSON file and listed.
 
 **STRETCH**
-- [x] Author leaderboard (from signal history).
-- [x] Signal Active / Expired marking (based on hold duration); expired signals stay in history but can't be copied.
-- [x] Signal filters (Active / Expired / All) and a home feed that **polls** for newly published signals (no refresh needed).
-- [x] Live (not historical) price-vs-plan indicator per signal (past TP / past SL / in range).
+- [x] **Signal outcome from real price history:** each signal is marked **Hit TP / Hit SL / Expired / Active** by replaying the market **candlesticks** over its hold window (first level crossed wins). Falls back to a time-based status if candles can't be read — never fabricates a hit.
+- [x] **Author leaderboard with win rate** (wins/losses = TP/SL hits) — a real per-author track record.
+- [x] Signal filters (Active / Closed / All) and a home feed that **polls** for new signals and updated outcomes (no refresh needed).
+- [x] Live (not historical) price-vs-plan indicator per active signal (past TP / past SL / in range).
+- [x] Closed signals (hit TP/SL or expired) stay in history but can't be copied.
 - [x] Light/dark theme toggle.
 
 **Extra safety hardening**
@@ -166,6 +167,7 @@ The take-home snippet and the docs are a **map, not gospel** — several things 
 - **Collateral is two steps:** `restricted_mint` mints testnet USDC to the wallet, then `deposit()` moves it into the trading subaccount (mint alone isn't collateral). USDC has 6 decimals.
 - **Silent partial fill:** an IOC order for an absurd size reported "executed" but only filled a fraction (margin-limited). Added a **collateral-based size cap** (`available * maxLeverage / price`, with a 5% buffer) that rejects oversized inputs before signing, so a successful response means a full fill.
 - **Builder fee unit is ambiguous** (SDK comment "100 = 0.01%" vs docs "10 bps = 0.1%"). I keep `builderFee == maxFee` so the safety lock holds regardless of the exact unit.
+- **Signal outcome uses candles, not fills.** The stretch says "read back fills/positions", but the app never places on-chain TP/SL orders, so fills can't tell you whether a *hypothetical* signal hit TP. I use `candlesticks.getByName` and test the window's highs/lows against the TP/SL levels (first crossed wins; on a candle that straddles both, SL wins — conservative). Two caveats I handle defensively: the candle **timestamp unit** (s vs ms) is auto-detected (try ms, retry seconds), and outcome falls back to a time-based status if candles are empty. One honest limitation: candle wicks are intra-minute, so **razor-thin levels (e.g. 0.1%, ~market noise) can register a "hit" the smoothed live-price line never sampled** — realistic TP/SL (2–3%) behave intuitively.
 
 ---
 

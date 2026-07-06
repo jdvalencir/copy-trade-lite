@@ -1,32 +1,30 @@
 "use client";
 import { useState } from "react";
-import { Signal } from "@/lib/signals";
+import type { SignalWithOutcome } from "@/lib/signal-types";
 import { SignalRecord } from "./SignalRecord";
 import { Button } from "@/components/ui/button";
 
-type Filter = "active" | "expired" | "all";
+type Filter = "active" | "closed" | "all";
 
-const isExpired = (s: Signal) => Date.now() > s.createdAt + s.holdHours * 3_600_000;
-
-export function SignalsList({ signals }: { signals: Signal[] }) {
+export function SignalsList({ signals }: { signals: SignalWithOutcome[] }) {
   const [filter, setFilter] = useState<Filter>("active");
 
   if (signals.length === 0) {
     return <p className="text-muted-foreground text-sm">No signals yet. Publish the first one.</p>;
   }
 
-  const activeCount = signals.filter((s) => !isExpired(s)).length;
-  const expiredCount = signals.length - activeCount;
+  const activeCount = signals.filter((s) => s.outcome === "active").length;
+  const closedCount = signals.length - activeCount;
 
   const shown = signals.filter((s) => {
-    if (filter === "active") return !isExpired(s);
-    if (filter === "expired") return isExpired(s);
+    if (filter === "active") return s.outcome === "active";
+    if (filter === "closed") return s.outcome !== "active";
     return true;
   });
 
   const tabs: { key: Filter; label: string; count: number }[] = [
     { key: "active", label: "Active", count: activeCount },
-    { key: "expired", label: "Expired", count: expiredCount },
+    { key: "closed", label: "Closed", count: closedCount },
     { key: "all", label: "All", count: signals.length },
   ];
 

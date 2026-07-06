@@ -1,4 +1,5 @@
 import { MARKET, read } from "@/lib/decibel";
+import { enrichWithOutcomes } from "@/lib/outcomes";
 import { addSignal, listSignals, validateSignalInput } from "@/lib/signals";
 import { NextResponse } from "next/server";
 import "server-only";
@@ -6,7 +7,7 @@ import "server-only";
 
 export async function GET() {
   try {
-    const signals = await listSignals();
+    const signals = await enrichWithOutcomes(await listSignals());
     return NextResponse.json({ signals });
   } catch (e) {
     return NextResponse.json(

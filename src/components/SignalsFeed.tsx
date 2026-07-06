@@ -1,13 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Signal } from "@/lib/signals";
+import type { SignalWithOutcome } from "@/lib/signal-types";
 import { SignalLeaderboard } from "./SignalLeaderboard";
 import { SignalsList } from "./SignalsList";
 
 // Seeded with the server-rendered signals, then polls /api/signals so newly
-// published signals appear on their own (no navigation/refresh needed).
-export function SignalsFeed({ initialSignals }: { initialSignals: Signal[] }) {
-  const [signals, setSignals] = useState<Signal[]>(initialSignals);
+// published signals (and updated outcomes) appear on their own.
+export function SignalsFeed({ initialSignals }: { initialSignals: SignalWithOutcome[] }) {
+  const [signals, setSignals] = useState<SignalWithOutcome[]>(initialSignals);
 
   useEffect(() => {
     let active = true;
