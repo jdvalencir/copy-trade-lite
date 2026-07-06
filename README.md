@@ -22,7 +22,10 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 
 **STRETCH**
 - [x] Author leaderboard (from signal history).
-- [x] Signal Active / Expired marking (based on hold duration).
+- [x] Signal Active / Expired marking (based on hold duration); expired signals stay in history but can't be copied.
+- [x] Signal filters (Active / Expired / All) and a home feed that **polls** for newly published signals (no refresh needed).
+- [x] Live (not historical) price-vs-plan indicator per signal (past TP / past SL / in range).
+- [x] Light/dark theme toggle.
 
 **Extra safety hardening**
 - [x] Input validation before signing (positive/finite size, valid side, collateral-based size cap).
@@ -34,6 +37,7 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 ## Stack
 
 - **Next.js (App Router) + TypeScript + Tailwind**
+- **UI:** shadcn/ui (Radix) + Tailwind v4, Recharts (charts), next-themes (dark mode), sonner (toasts)
 - `@decibeltrade/sdk` **v0.7.0** and `@aptos-labs/ts-sdk`
 - Aptos testnet via a **Geomi** Node API key
 - Signal persistence: local JSON file (`data/signals.json`)
@@ -45,17 +49,32 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 ```
 src/
   lib/
-    decibel.ts        # server-only core: read/write SDK clients, account, addresses, constants
+    decibel.ts        # server-only core: read/write SDK clients, account, addresses, builder constants
     signals.ts        # server-only signal persistence (JSON) + validation
-    utils.ts          # requireEnv helper
+    useLivePrice.ts   # client: ONE shared poller for the live BTC price (pub/sub, so N cards = 1 fetch)
+    utils.ts          # cn (classnames), requireEnv, fmt ($ format)
   app/
     api/
-      account/route.ts   # GET  – dashboard reads (overview, positions, open orders)
-      trade/route.ts     # POST – validate, price, convert, place order
+      account/route.ts   # GET  – dashboard reads (overview, positions, open orders) + mark price
+      trade/route.ts     # POST – validate + collateral cap, price, chain-unit convert, place order (builder code)
       signals/route.ts   # GET list / POST create (captures live entry price)
-    page.tsx             # dashboard + trade panel + signals
+      price/route.ts     # GET  – live BTC mark price
+    layout.tsx           # theme provider + toaster
+    page.tsx             # home: trade panel + dashboard (left), signals feed (right)
+    author/page.tsx      # signal authoring page
   components/
-    TradePanel.tsx    Dashboard.tsx    SignalForm.tsx   (+ signal cards / chart / leaderboard)
+    TradePanel.tsx        # manual buy/sell
+    Dashboard.tsx         # equity / positions (per-position PnL) / open orders — polls /api/account (4s)
+    SignalForm.tsx        # publish a signal
+    SignalRecords.tsx     # server: SSR the initial signals -> feed
+    SignalsFeed.tsx       # client: polls /api/signals (5s); renders leaderboard + list
+    SignalLeaderboard.tsx # per-author track record
+    SignalsList.tsx       # Active / Expired / All filters + grid
+    SignalRecord.tsx      # one signal: chart, status, live indicator, Copy button
+    SignalChart.tsx       # Recharts: price line + entry/TP/SL reference lines
+    ModeToggle.tsx        # light/dark theme toggle
+    theme-provider.tsx    # next-themes wrapper
+    ui/                   # shadcn/ui primitives (button, card, input, ...)
   scripts/
     setup-usdc.ts     # one-time: mint testnet USDC + deposit as collateral
     approve-builder.ts# one-time: approve max builder fee for my builder subaccount
@@ -115,11 +134,11 @@ Open http://localhost:3000.
 
 ## Demo path (what to run first)
 
-1. Home loads the dashboard (equity, available, PnL, positions, orders).
-2. Press **Buy** with a small size (e.g. 0.001) → order executes, position appears.
-3. Publish a signal (side, TP%, SL%, hours) → entry is captured from the live price.
-4. See the signal card with its entry / TP / SL chart.
-5. Press **Copy** on a signal → the equivalent order is placed from your account.
+1. Home loads: trade panel + dashboard (equity, available, PnL, positions with live PnL, open orders) on the left, signals feed on the right.
+2. Press **Buy** with a small size (e.g. 0.001) → order executes (builder code attached), the position appears.
+3. Click **Publish a signal** (top of the signals column) → opens `/author`. Fill side, TP%, SL%, hours, size and publish — the entry is captured from the live price server-side. It does **not** redirect; use **← Back** to return.
+4. Back on the home, the new signal shows up in the feed on its own within a few seconds (the feed **polls**; default **Active** filter), with its entry / TP / SL chart and a live indicator.
+5. Press **Copy** on a signal → the equivalent order is placed from your account (builder code attached).
 
 ---
 
@@ -143,6 +162,7 @@ The take-home snippet and the docs are a **map, not gospel** — several things 
   - `approveMaxBuilderFee` requires `builderAddr` to be an **existing subaccount** (owner address → `EBUILDER_SUBACCOUNT_NOT_FOUND`).
   - `placeOrder` requires the builder to be **registered** (`EBUILDER_NOT_REGISTERED`).
   - The SDK exposes no `registerBuilder`; the documented example builder address isn't usable for approve on this testnet. I used my **own primary subaccount** as the builder (which exists + is registered), so approve → place works with my own address.
+  - **Bug I shipped, then caught & fixed:** the app first had the builder code effectively **off** — `USE_BUILDER_CODE = false`, so `placeOrder` never attached `builderAddr`/`builderFee` and orders went out *without* a builder code (MUST #2 wasn't really met). Worse, `approve-builder.ts` approved a **hardcoded** address that was different from the one the app derived, so even once enabled the approved `maxFee` wouldn't be authorized for the order's builder. **Fix:** derive the builder address **identically** in the approve script and in the app — the primary subaccount **padded to 64 chars** (`"0x" + hex.padStart(64, "0")`) — turn on the builder code in `placeOrder`, and keep the `builderFee (10) <= maxFee (10)` lock enforced before signing. Now the address I approve is byte-for-byte the address attached to every order, and the approve → place flow actually carries the builder code.
 - **Collateral is two steps:** `restricted_mint` mints testnet USDC to the wallet, then `deposit()` moves it into the trading subaccount (mint alone isn't collateral). USDC has 6 decimals.
 - **Silent partial fill:** an IOC order for an absurd size reported "executed" but only filled a fraction (margin-limited). Added a **collateral-based size cap** (`available * maxLeverage / price`, with a 5% buffer) that rejects oversized inputs before signing, so a successful response means a full fill.
 - **Builder fee unit is ambiguous** (SDK comment "100 = 0.01%" vs docs "10 bps = 0.1%"). I keep `builderFee == maxFee` so the safety lock holds regardless of the exact unit.
@@ -156,7 +176,6 @@ Implemented and verified end-to-end. What I'd add next:
 - **Automatic TP/SL orders on copy.** Copy currently places the equivalent **entry** only; it doesn't submit on-chain TP/SL trigger orders. I'd wire the signal's TP/SL into `placeOrder`'s trigger-price params.
 - **Exact fill reporting.** Report filled vs requested size instead of a generic success (read back fills from `userTradeHistory`).
 - **Per-user wallets.** The MVP uses a single hardcoded server key, so every action comes from one account. In production each user would connect their own wallet (Aptos wallet adapter) and approve the builder fee from the UI the first time they trade.
-- **Per-position live PnL** in each row (currently the account-level unrealized PnL is shown).
 - **WebSocket** instead of polling for live updates.
 - **Position netting:** with a single cross-margin account and no `isReduceOnly`, copy orders net against existing positions rather than opening isolated ones.
 
@@ -164,4 +183,4 @@ Implemented and verified end-to-end. What I'd add next:
 
 ## AI assistance & review
 
-I used AI tooling to generate boilerplate and to work through the SDK, then reviewed and corrected everything by running it. AI-assisted: the Next.js scaffolding, route handlers, React components, and the setup scripts. What I owned and changed after review: all of the **Findings** above were caught by reading the actual SDK types and testing on testnet (the snippet's method names, argument shapes, gas config, chain-unit conversion, and the builder-code approve-vs-register distinction were wrong or incomplete out of the box). I also made the architecture and safety decisions — server-only key handling, the collateral-based size cap, and the `builderFee <= maxFee` lock — and verified each safety check by deliberately breaking it (oversized order, `builderFee > maxFee`, bad inputs) to confirm it fails safely. I'm accountable for every line submitted.
+I used AI tooling to generate boilerplate and to work through the SDK, then reviewed and corrected everything by running it. AI-assisted: the Next.js scaffolding, route handlers, React components, the **shadcn/ui + Recharts + next-themes UI layer**, and the setup scripts. What I owned and changed after review: all of the **Findings** above were caught by reading the actual SDK types and testing on testnet (the snippet's method names, argument shapes, gas config, chain-unit conversion, and the builder-code approve-vs-register distinction were wrong or incomplete out of the box). I also **caught a builder-code bug in my own code during review** — it was disabled (`USE_BUILDER_CODE = false`) and the approved builder address didn't match the one attached to orders, so orders were going out without a working builder code (see Findings). I made the architecture and safety decisions — server-only key handling, the collateral-based size cap, and the `builderFee <= maxFee` lock — and verified each safety check by deliberately breaking it (oversized order, `builderFee > maxFee`, bad inputs) to confirm it fails safely. I'm accountable for every line submitted.
