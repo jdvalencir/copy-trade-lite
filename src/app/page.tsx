@@ -3,7 +3,9 @@ import { ModeToggle } from "@/components/ModeToggle";
 import { SignalRecords } from "@/components/SignalRecords";
 import { TradePanel } from "@/components/TradePanel";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export default function Home() {
   return (
@@ -36,7 +38,17 @@ export default function Home() {
             </Button>
           </div>
           <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
-            <SignalRecords />
+            <Suspense
+              fallback={
+                <div className="grid gap-4 md:grid-cols-2">
+                  {[0, 1].map((i) => (
+                    <Skeleton key={i} className="h-72 w-full rounded-xl" />
+                  ))}
+                </div>
+              }
+            >
+              <SignalRecords />
+            </Suspense>
           </div>
         </section>
       </div>
