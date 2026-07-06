@@ -1,6 +1,6 @@
-import { Redis } from "@upstash/redis";
 import { promises as fs } from "fs";
 import path from "path";
+import { createClient } from "redis";
 import "server-only";
 
 export type Signal = {
@@ -19,17 +19,20 @@ export type Signal = {
 const FILE = path.join(process.cwd(), "data", "signals.json");
 const REDIS_KEY = "signals";
 
-// Storage backend: use Upstash Redis when its env vars are present (e.g. on
-// Vercel, whose filesystem is read-only); otherwise a local JSON file. This
-// keeps local dev exactly as it was and makes the app deployable unchanged.
-// Accepts either Upstash-native or Vercel-KV-style variable names.
-let cachedRedis: Redis | null | undefined;
-function getRedis(): Redis | null {
-  if (cachedRedis !== undefined) return cachedRedis;
-  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-  cachedRedis = url && token ? new Redis({ url, token }) : null;
-  return cachedRedis;
+// Storage backend: use Redis when REDIS_URL is set (e.g. on Vercel, whose
+// filesystem is read-only); otherwise a local JSON file. This keeps local dev
+// exactly as it was and makes the app deployable unchanged. The connected
+// client is cached at module level so it's reused across serverless invocations.
+type RedisClient = ReturnType<typeof createClient>;
+let clientPromise: Promise<RedisClient> | null = null;
+function getRedis(): Promise<RedisClient> | null {
+  if (!process.env.REDIS_URL) return null;
+  if (!clientPromise) {
+    const client: RedisClient = createClient({ url: process.env.REDIS_URL });
+    client.on("error", (e) => console.error("Redis client error:", e));
+    clientPromise = client.connect().then(() => client);
+  }
+  return clientPromise;
 }
 
 async function readAllFromFile(): Promise<Signal[]> {
@@ -47,9 +50,9 @@ async function writeAllToFile(signals: Signal[]): Promise<void> {
 }
 
 export async function listSignals(): Promise<Signal[]> {
-  const redis = getRedis();
+  const redis = await getRedis();
   const all = redis
-    ? (await redis.lrange<Signal>(REDIS_KEY, 0, -1)) ?? []
+    ? (await redis.lRange(REDIS_KEY, 0, -1)).map((s) => JSON.parse(s) as Signal)
     : await readAllFromFile();
   return all.sort((a, b) => b.createdAt - a.createdAt); // most recent first
 }
@@ -61,10 +64,10 @@ export async function addSignal(input: Omit<Signal, "id" | "createdAt">): Promis
     createdAt: Date.now(),
   };
 
-  const redis = getRedis();
+  const redis = await getRedis();
   if (redis) {
     // Append (list op) avoids the read-modify-write race of the file store.
-    await redis.rpush(REDIS_KEY, signal);
+    await redis.rPush(REDIS_KEY, JSON.stringify(signal));
   } else {
     const all = await readAllFromFile();
     all.push(signal);

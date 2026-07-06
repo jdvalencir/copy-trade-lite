@@ -41,7 +41,7 @@ A dead-simple perpetuals trading app with a copy-trade signals feature, built on
 - **UI:** shadcn/ui (Radix) + Tailwind v4, Recharts (charts), next-themes (dark mode), sonner (toasts)
 - `@decibeltrade/sdk` **v0.7.0** and `@aptos-labs/ts-sdk`
 - Aptos testnet via a **Geomi** Node API key
-- Signal persistence: local **JSON file** (`data/signals.json`) in dev, **Upstash Redis** when deployed (auto-selected by env vars)
+- Signal persistence: local **JSON file** (`data/signals.json`) in dev, **Redis** (`node-redis`) when deployed — auto-selected via `REDIS_URL`
 
 ---
 
@@ -137,19 +137,19 @@ Open http://localhost:3000.
 
 The app is deploy-ready. The only thing that can't run on serverless is the JSON
 file store (Vercel's filesystem is read-only), so signal persistence swaps to
-**Upstash Redis** automatically when its env vars are present — locally it stays
-on the JSON file with no config.
+**Redis** automatically when `REDIS_URL` is set — locally it stays on the JSON
+file with no config.
 
 1. Push to GitHub and import the repo in Vercel.
-2. Add a **free Upstash Redis** database (Vercel dashboard → Storage → Marketplace →
-   Upstash, or create one at upstash.com). The integration sets
-   `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (Vercel-KV-style
-   `KV_REST_API_URL` / `KV_REST_API_TOKEN` are also accepted).
+2. Create a **Redis** database (Vercel dashboard → Storage → create a Redis DB, or
+   any hosted Redis) and **Connect it to the project** — that injects a `REDIS_URL`
+   env var (Production + Preview).
 3. Add the trading env vars in Vercel project settings: `APTOS_PRIVATE_KEY`,
    `APTOS_NODE_API_KEY`.
 4. Run the one-time on-chain setup **locally** (mint/deposit + approve builder) —
    those scripts sign from your machine, not the deployment.
-5. Deploy. `listSignals` / `addSignal` use Redis automatically when the vars exist.
+5. Redeploy. `listSignals` / `addSignal` use Redis (via `node-redis`) automatically
+   when `REDIS_URL` exists.
 
 > **Note:** the deployed app trades from a single hardcoded testnet key, so every
 > visitor's action comes from **one** account. That's fine for a testnet demo, but
