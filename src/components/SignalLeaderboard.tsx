@@ -1,5 +1,5 @@
-import { Signal } from "@/lib/signals";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Signal } from "@/lib/signals";
 
 type Row = {
   author: string;
